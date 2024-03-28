@@ -1,0 +1,60 @@
+import cv2
+import numpy as np
+
+# Function to detect fire in the image
+def detect_fire(img):
+    # Convert the image to HSV color space
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+    # Define the range of colors to detect for fire
+    lower_red = np.array([0, 100, 100])
+    upper_red = np.array([10, 255, 255])
+    lower_orange = np.array([11, 100, 100])
+    upper_orange = np.array([25, 255, 255])
+
+    # Create a mask for red and orange colors
+    mask_red = cv2.inRange(hsv, lower_red, upper_red)
+    mask_orange = cv2.inRange(hsv, lower_orange, upper_orange)
+    mask = cv2.bitwise_or(mask_red, mask_orange)
+
+    # Apply morphological operations to remove noise
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    mask = cv2.erode(mask, kernel, iterations=2)
+    mask = cv2.dilate(mask, kernel, iterations=2)
+
+    # Find contours in the mask
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Draw bounding boxes around the fire regions
+    fire_detected = False
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+        if area > 500:  # Adjust this value as per your requirements
+            x, y, w, h = cv2.boundingRect(cnt)
+            cv2.rectangle(img, (x, y), (x + w, y + h), (0, 0, 255), 2)
+            fire_detected = True
+
+    return fire_detected
+
+# Load the webcam
+cap = cv2.VideoCapture(0)
+
+# Run the webcam in a loop
+while True:
+    # Read a frame from the webcam
+    ret, frame = cap.read()
+
+    # Detect fire in the frame
+    fire_detected = detect_fire(frame)
+
+    # Display the result
+    cv2.putText(frame, "Fire detected" if fire_detected else "No fire detected", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+    cv2.imshow('Fire Detection', frame)
+
+    # Break the loop if 'q' key is pressed
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# Release the webcam and close the window
+cap.release()
+cv2.destroyAllWindows()
